@@ -231,7 +231,7 @@ export class FomoClient {
    * Cost: 250 credits
    */
   async getLeaderboard(
-    window: "1d" | "7d" | "30d" | "all" = "30d",
+    window: "24h" | "7d" | "30d" | "all" = "30d",
     limit = 20,
   ) {
     return this.request<any[]>(`/v2/leaderboard/${window}?limit=${limit}`);

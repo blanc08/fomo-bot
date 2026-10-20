@@ -183,7 +183,7 @@ export class UnifiedDiscordBot {
             .setName("window")
             .setDescription("Time window")
             .addChoices(
-              { name: "24 Hours", value: "1d" },
+              { name: "24 Hours", value: "24h" },
               { name: "7 Days", value: "7d" },
               { name: "30 Days", value: "30d" },
               { name: "All Time", value: "all" },
@@ -203,13 +203,30 @@ export class UnifiedDiscordBot {
 
     const rest = new REST({ version: "10" }).setToken(config.DISCORD_BOT_TOKEN);
     try {
-      logger.info("Registering unified Discord slash commands...");
-      await rest.put(Routes.applicationCommands(config.DISCORD_CLIENT_ID), {
-        body: commands,
-      });
-      logger.info(
-        " Unified slash commands registered (/check, /leaderboard, /trader)",
-      );
+      if (config.DISCORD_GUILD_ID) {
+        logger.info(
+          { guildId: config.DISCORD_GUILD_ID },
+          "Registering instant guild-specific slash commands...",
+        );
+        await rest.put(
+          Routes.applicationGuildCommands(
+            config.DISCORD_CLIENT_ID,
+            config.DISCORD_GUILD_ID,
+          ),
+          { body: commands },
+        );
+        logger.info(
+          " Instant guild slash commands registered (/check, /leaderboard, /trader)",
+        );
+      } else {
+        logger.info("Registering global Discord slash commands...");
+        await rest.put(Routes.applicationCommands(config.DISCORD_CLIENT_ID), {
+          body: commands,
+        });
+        logger.info(
+          " Global slash commands registered (/check, /leaderboard, /trader)",
+        );
+      }
     } catch (err: any) {
       logger.error(
         { err: err.message },
@@ -242,28 +259,34 @@ export class UnifiedDiscordBot {
     interaction: ChatInputCommandInteraction,
   ) {
     const window = (interaction.options.getString("window") || "30d") as
-      | "1d"
+      | "24h"
       | "7d"
       | "30d"
       | "all";
     await interaction.deferReply();
 
     try {
-      const leaders = await fomoClient.getLeaderboard(window, 10);
+      const response = await fomoClient.getLeaderboard(window, 10);
+      const leadersList: any[] = Array.isArray(response)
+        ? response
+        : (response as any)?.traders || [];
+
       const embed = new EmbedBuilder()
         .setTitle(`🏆 FOMO Trader Leaderboard (${window.toUpperCase()})`)
         .setColor(0xffd700)
         .setTimestamp(new Date());
 
-      if (!Array.isArray(leaders) || leaders.length === 0) {
+      if (leadersList.length === 0) {
         embed.setDescription("No leaderboard data available.");
       } else {
-        const lines = leaders.map((trader, i) => {
+        const lines = leadersList.map((trader, i) => {
           const handle =
             trader.handle || trader.trader || trader.username || "anon";
           const pnl = trader.pnlUsd || trader.pnl || trader.realizedPnlUsd || 0;
-          const winRate = trader.winRatePercent || trader.winRate || 0;
-          return `**#${i + 1}** [@${handle}](https://fomo.family/${handle}) — **+$${Math.round(pnl).toLocaleString()}** (${winRate}% win rate)`;
+          const winRate = trader.winRatePercent || trader.winRate;
+          const winRateStr =
+            winRate !== undefined ? ` (${winRate}% win rate)` : "";
+          return `**#${i + 1}** [@${handle}](https://fomo.family/${handle}) — **+$${Math.round(pnl).toLocaleString()}**${winRateStr}`;
         });
         embed.setDescription(lines.join("\n\n"));
       }
