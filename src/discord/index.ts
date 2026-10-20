@@ -10,6 +10,7 @@ import {
   Routes,
   SlashCommandBuilder,
   TextChannel,
+  Events,
 } from "discord.js";
 import { config } from "../config/index.js";
 import { cache } from "../core/cache.js";
@@ -40,7 +41,7 @@ export class UnifiedDiscordBot {
   }
 
   private setupEventHandlers() {
-    this.client.on("ready", () => {
+    this.client.on(Events.ClientReady, () => {
       this.isReady = true;
       logger.info(
         { user: this.client.user?.tag },
@@ -146,7 +147,8 @@ export class UnifiedDiscordBot {
     this.recordThesisInWindow(alert.tokenAddress, alert.trader || "anon");
     const isSpike = this.checkNarrativeSpike(alert.tokenAddress);
 
-    const { embed } = createThesisEmbed(alert);
+    const analysis = this.scoreThesis(alert.thesisText);
+    const { embed } = createThesisEmbed(alert, analysis);
     if (isSpike) {
       embed.setTitle(`🔥 [NARRATIVE SPIKE] ${embed.data.title}`);
     }
@@ -286,7 +288,7 @@ export class UnifiedDiscordBot {
           const winRate = trader.winRatePercent || trader.winRate;
           const winRateStr =
             winRate !== undefined ? ` (${winRate}% win rate)` : "";
-          return `**#${i + 1}** [@${handle}](https://fomo.family/${handle}) — **+$${Math.round(pnl).toLocaleString()}**${winRateStr}`;
+          return `**#${i + 1}** [@${handle}](https://fomo.family/profile/${handle}) — **+$${Math.round(pnl).toLocaleString()}**${winRateStr}`;
         });
         embed.setDescription(lines.join("\n\n"));
       }
@@ -351,7 +353,7 @@ export class UnifiedDiscordBot {
         new ButtonBuilder()
           .setLabel("View on fomo.family")
           .setStyle(ButtonStyle.Link)
-          .setURL(`https://fomo.family/${profile.handle}`),
+          .setURL(`https://fomo.family/profile/${profile.handle}`),
       );
 
       await interaction.editReply({ embeds: [embed], components: [button] });
@@ -379,6 +381,59 @@ export class UnifiedDiscordBot {
     const list = this.tokenThesesWindow.get(tokenAddress) || [];
     const uniqueTraders = new Set(list.map((i) => i.trader));
     return uniqueTraders.size >= 3;
+  }
+
+  private scoreThesis(text: string) {
+    const lower = text.toLowerCase();
+    let score = 50;
+    const catalysts: string[] = [];
+
+    const bullish = [
+      "moon",
+      "gem",
+      "whale",
+      "breakout",
+      "send it",
+      "100x",
+      "10x",
+      "listing",
+      "runner",
+      "bullish",
+    ];
+    const bearish = [
+      "dump",
+      "rug",
+      "scam",
+      "jeets",
+      "dead",
+      "sell",
+      "fade",
+      "bearish",
+    ];
+
+    bullish.forEach((w) => {
+      if (lower.includes(w)) {
+        score += 8;
+        if (
+          ["listing", "whale", "breakout"].includes(w) &&
+          !catalysts.includes(w)
+        )
+          catalysts.push(w);
+      }
+    });
+    bearish.forEach((w) => {
+      if (lower.includes(w)) score -= 15;
+    });
+
+    score = Math.max(-100, Math.min(100, score));
+    const conviction: "LOW" | "MEDIUM" | "HIGH" =
+      Math.abs(score) > 75 ? "HIGH" : Math.abs(score) > 40 ? "MEDIUM" : "LOW";
+
+    return {
+      sentimentScore: score,
+      conviction,
+      catalysts: catalysts.length > 0 ? catalysts : ["Community Momentum"],
+    };
   }
 
   async sendToChannel(

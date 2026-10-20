@@ -54,9 +54,13 @@ export class CopyTraderEngine {
   private async loadTopTradersFromLeaderboard() {
     try {
       logger.info("Fetching top 5 traders from FOMO 30-day leaderboard...");
-      const leaders = await fomoClient.getLeaderboard("30d", 5);
-      if (Array.isArray(leaders) && leaders.length > 0) {
-        leaders.forEach((l) => {
+      const response = await fomoClient.getLeaderboard("30d", 5);
+      const leadersList: any[] = Array.isArray(response)
+        ? response
+        : (response as any)?.traders || [];
+
+      if (leadersList.length > 0) {
+        leadersList.forEach((l) => {
           const handle = l.handle || l.trader || l.username;
           if (handle)
             this.targetTraders.add(handle.toLowerCase().replace(/^@/, ""));

@@ -34,10 +34,6 @@ const configSchema = z.object({
         .filter(Boolean),
     ),
 
-  // AI Sentiment
-  GEMINI_API_KEY: z.string().optional().default(""),
-  OPENAI_API_KEY: z.string().optional().default(""),
-
   // Logging
   LOG_LEVEL: z
     .enum(["trace", "debug", "info", "warn", "error", "fatal"])

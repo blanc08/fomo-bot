@@ -25,7 +25,7 @@ export function createWhaleAlertEmbed(alert: BaseAlert) {
       {
         name: "👤 Trader",
         value: alert.trader
-          ? `[@${alert.trader}](https://fomo.family/${alert.trader})`
+          ? `[@${alert.trader}](https://fomo.family/profile/${alert.trader})`
           : "Unknown",
         inline: true,
       },

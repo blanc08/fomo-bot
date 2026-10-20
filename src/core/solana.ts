@@ -17,7 +17,11 @@ export class SolanaManager {
     this.connection = new Connection(config.SOLANA_RPC_URL, "confirmed");
     this.isSimulation = config.BOT_MODE === "simulation";
 
-    if (config.SOLANA_PRIVATE_KEY) {
+    const hasCustomKey =
+      config.SOLANA_PRIVATE_KEY &&
+      !config.SOLANA_PRIVATE_KEY.includes("your_solana_wallet");
+
+    if (hasCustomKey) {
       try {
         const secret = bs58.decode(config.SOLANA_PRIVATE_KEY.trim());
         this.wallet = Keypair.fromSecretKey(secret);
@@ -29,21 +33,24 @@ export class SolanaManager {
           "Solana wallet initialized",
         );
       } catch (err: any) {
-        logger.error(
+        logger.warn(
           { err: err.message },
-          "Failed to parse SOLANA_PRIVATE_KEY",
+          "Could not parse SOLANA_PRIVATE_KEY as Base58",
         );
       }
-    } else {
+    }
+
+    // Fallback if no wallet could be created from private key
+    if (!this.wallet) {
       if (this.isSimulation) {
         this.wallet = Keypair.generate();
         logger.info(
           { pubkey: this.wallet.publicKey.toBase58() },
-          "Running in SIMULATION mode with dummy wallet",
+          "Running in SIMULATION mode with generated test wallet",
         );
       } else {
         logger.warn(
-          "No SOLANA_PRIVATE_KEY provided and mode is LIVE. Trading will be disabled.",
+          "No valid SOLANA_PRIVATE_KEY provided and mode is LIVE. On-chain execution is disabled.",
         );
       }
     }
