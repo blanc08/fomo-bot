@@ -1,0 +1,39 @@
+{
+  "name": "fomo-bot",
+  "version": "1.0.0",
+  "description": "FOMO & Solana Trading Bot Suite",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "fomo",
+    "solana",
+    "trading-bot",
+    "jupiter",
+    "discord"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@solana/web3.js": "^1.95.8",
+    "bs58": "^6.0.0",
+    "discord.js": "^14.27.0",
+    "dotenv": "^18.0.8",
+    "lru-cache": "^11.5.3",
+    "pino": "^10.4.0",
+    "pino-pretty": "^13.2.0",
+    "ws": "^8.22.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "@types/ws": "^8.18.2",
+    "tsx": "^4.23.15",
+    "typescript": "^5.8.2"
+  }
+}

@@ -1,0 +1,1647 @@
+{
+    "openapi": "3.1.0",
+    "info": {
+        "title": "FOMO API",
+        "version": "2.0.0",
+        "description": "FOMO API is an independent, unofficial developer API for structured trader and market data associated with fomo.family. Resolve a handle or stable user ID to Solana and EVM wallets; read source-reported PnL and profile statistics; fetch balances, available positions and swaps, theses, leaderboards, token intelligence, activity, and realtime streams. PnL is passed through from fomo.family rather than independently recomputed. Position and swap history can be partial, paginated, capped, or source-specific and is not guaranteed to be a complete lifetime ledger.\n\nHTTP DATA AUTHENTICATION: send authorization: Bearer YOUR_API_KEY. GET /v1 and GET /health are keyless discovery endpoints; the leaderboard, REST activity feed, and all other HTTP data endpoints require a key. The /ws/alerts app-feed WebSocket has separate access rules described by that operation, while /ws/trades requires an eligible Growth or Scale key.\n\nBILLING: usage is metered in endpoint-weighted credits. An ordinary read or leaderboard call is 250 credits, GET /v2/alerts is 125, a thesis page is 1,250, and a handle or user-ID wallet resolution is 2,500. Authenticated responses expose x-credits-cost and x-credits-remaining. The current self-serve monthly buckets are Free 250,000, Starter 2,500,000, Builder 12,500,000, Growth 37,500,000, and Scale 112,500,000 credits. Treat https://fomoapi.io/pricing as authoritative for current prices, allowances, stream eligibility, and payment terms.\n\nCanonical documentation: https://fomoapi.io/docs. Independent and unofficial: FOMO API is not affiliated with, endorsed by, or sponsored by fomo.family.",
+        "contact": {
+            "name": "FOMO API",
+            "url": "https://fomoapi.io"
+        }
+    },
+    "servers": [
+        {
+            "url": "https://api.fomoapi.io"
+        }
+    ],
+    "externalDocs": {
+        "description": "FOMO API developer reference",
+        "url": "https://fomoapi.io/docs"
+    },
+    "security": [
+        {
+            "bearerAuth": []
+        },
+        {
+            "apiKeyHeader": []
+        },
+        {
+            "apiKeyQuery": []
+        }
+    ],
+    "tags": [
+        {
+            "name": "meta"
+        },
+        {
+            "name": "traders"
+        },
+        {
+            "name": "leaderboards"
+        },
+        {
+            "name": "theses"
+        },
+        {
+            "name": "tokens"
+        },
+        {
+            "name": "search"
+        },
+        {
+            "name": "activity"
+        }
+    ],
+    "paths": {
+        "/v1": {
+            "get": {
+                "tags": [
+                    "meta"
+                ],
+                "summary": "API info + self-describing endpoint list",
+                "security": [
+                    {},
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "version, tier, rate limit, dataset size, endpoints{} (keyless-open)"
+                    }
+                }
+            }
+        },
+        "/health": {
+            "get": {
+                "tags": [
+                    "meta"
+                ],
+                "summary": "Liveness",
+                "security": [
+                    {},
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{ ok, traders, uptime } (keyless-open)"
+                    }
+                }
+            }
+        },
+        "/v2/users/{handle}": {
+            "get": {
+                "tags": [
+                    "traders"
+                ],
+                "summary": "Resolve a trader: wallets, PnL, stats, account age",
+                "description": "Case-insensitive handle, optional leading @. Returns both-chain wallets and full stats. A wallet is served only when it has been PROVEN on chain - the address holds this trader's current positions to the exact amount - and we resolve ONE verified main wallet per chain, not every address they control. If we cannot prove one yet, wallets is {status:\"resolving\"}: the resolution runs in the background and finishes whether or not you ask again, so this is not a request to poll, and the response is REFUNDED (x-credits-cost 0). Traders are normally resolved before anyone asks - every trader seen on /ws/alerts is queued the moment they trade - so \"resolving\" mostly means a handle we have genuinely never seen. On an off-board trader, holdingsStatus:\"resolving\" likewise means the live positions pull outran its budget and is still running, so holdings is null rather than empty; a trader who really holds nothing carries no holdingsStatus at all.",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/handle"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Trader object",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "handle": {
+                                            "type": "string"
+                                        },
+                                        "displayName": {
+                                            "type": "string"
+                                        },
+                                        "verified": {
+                                            "type": "boolean"
+                                        },
+                                        "wallets": {
+                                            "type": "object",
+                                            "properties": {
+                                                "solana": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "evm": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                }
+                                            }
+                                        },
+                                        "pnl": {
+                                            "type": "object",
+                                            "description": "PnL per window",
+                                            "properties": {
+                                                "24h": {
+                                                    "type": "number"
+                                                },
+                                                "7d": {
+                                                    "type": "number"
+                                                },
+                                                "30d": {
+                                                    "type": "number"
+                                                },
+                                                "all": {
+                                                    "type": "number"
+                                                }
+                                            }
+                                        },
+                                        "pnlUsd": {
+                                            "type": "number",
+                                            "description": "all-time PnL"
+                                        },
+                                        "volumeUsd": {
+                                            "type": "number"
+                                        },
+                                        "trades": {
+                                            "type": "integer"
+                                        },
+                                        "followers": {
+                                            "type": "integer"
+                                        },
+                                        "fomoCreatedAt": {
+                                            "type": "string"
+                                        },
+                                        "accountAgeDays": {
+                                            "type": "integer"
+                                        },
+                                        "averageHoldTimeSeconds": {
+                                            "type": "number"
+                                        },
+                                        "holdings": {
+                                            "description": "A leaderboard-backed profile can return an integer token count. An off-board profile can return an array of holdings, or null when unavailable. A count is not a position list, and neither a missing holdingsStatus nor this field establishes complete holdings or a flat portfolio. For a consistent holdings array, use /v2/users/{handle}/balances and check available, complete and truncated; that response does not establish total portfolio equity.",
+                                            "oneOf": [
+                                                {
+                                                    "type": "integer",
+                                                    "minimum": 0
+                                                },
+                                                {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                {
+                                                    "type": "null"
+                                                }
+                                            ]
+                                        },
+                                        "holdingsStatus": {
+                                            "type": "string",
+                                            "enum": [
+                                                "resolving"
+                                            ],
+                                            "description": "When present, the off-board positions pull is still running and holdings is null. Absence does not establish complete holdings or a flat portfolio."
+                                        },
+                                        "topTokens": {
+                                            "type": "array"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "trader not found"
+                    }
+                }
+            }
+        },
+        "/v2/users/{handle}/trades": {
+            "get": {
+                "tags": [
+                    "traders"
+                ],
+                "summary": "A trader's trade history (for copy-trading)",
+                "description": "Each trade: token{symbol,address}, side, sizeUsd, realizedPnlUsd, chainId, chain (friendly name, e.g. 'robinhood' for 4663), ts, source. source='captured' adds tradeId, status, amount, avgEntryPrice, avgExitPrice, unrealizedPnlUsd, createdAt, closedAt; source='feed' = live recent trades for any active trader. Returns available:false until captured. ?cursor= PAGES OLDER TRADES: start at ?cursor=start, then pass each response's nextCursor back as ?cursor= while it is not null. 25 closed trades per page, 250 credits per page. The first page also carries open positions; later pages are closed only, and order interleaves across chains so sort by timestamp yourself. ?deep goes WIDER instead of deeper, in one call. Those 25 are PER CHAIN though, and the two sort orders return disjoint sets, so ?deep fans out across chains and both orders and typically returns several times more closed trades. Billed 250 credits per upstream call that actually answers, so a partial fan-out costs less. The response carries closedTotalOnFomo, perChainClosedTotal, upstreamCalls, partial and complete:false. A FULL trade history is not obtainable from FOMO at any setting; for complete history use the wallets from /v2/users/{handle} and read the chain directly.",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/handleOrUserId"
+                    },
+                    {
+                        "$ref": "#/components/parameters/limit"
+                    },
+                    {
+                        "name": "deep",
+                        "in": "query",
+                        "required": false,
+                        "description": "1 (or true) for the full fan-out, or N to buy only N upstream calls. Each call that answers costs 250 credits. Omit for the ordinary single-call behaviour at 250 credits.",
+                        "schema": {
+                            "type": "string",
+                            "example": "1"
+                        }
+                    },
+                    {
+                        "$ref": "#/components/parameters/tradeStatus"
+                    },
+                    {
+                        "name": "cursor",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Page older results. On /trades and /positions start with cursor=start, then pass each response's nextCursor back here while it is not null (25 closed trades per page). On /swaps the first call already returns a nextCursor (100 fills per page). Billed 250 credits per page."
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{ key, kind, count, trades: [...] }. With ?deep also closedTotalOnFomo (FOMO's real total), perChainClosedTotal, upstreamCalls, partial (some chains did not answer in time; you were only charged for the ones that did) and complete:false. Each row carries the full position economics: costBasisUsd, boughtAmount (a real buy), soldAmount, transferredInAmount (tokens received, not purchased), transferredOutAmount, avgTransferInPrice, avgTransferOutPrice, priceUsd (current) and userId. amount reconciles as boughtAmount - soldAmount + transferredInAmount - transferredOutAmount. avgEntryPrice is null EXACTLY when the position was never bought: measured across 150 positions on 6 traders, all 76 null-entry rows had boughtAmount 0, so a null means the tokens were received rather than that the data is missing. Where there is a buy, costBasisUsd / boughtAmount gives entry."
+                    }
+                }
+            }
+        },
+        "/v2/users/{handle}/balances": {
+            "get": {
+                "tags": [
+                    "traders"
+                ],
+                "summary": "A trader's holdings snapshot and optional portfolio fields",
+                "description": "holdings[]: {token{symbol,address,networkId}, amount, priceUsd, valueUsd, change24h, chain}, plus totalValueUsd, count, and - when present - otherPnl, otherPnlV2, otherEquity, livePerpPnl, hyperliquidPerps, nativeEvmBalances.\n\nCOMPLETENESS. Upstream caps this response at ~100 holdings and there is NO WAY PAST THE CAP. Probed directly against the source on 2026-09-29: ?limit, ?offset, ?page, ?pageSize and ?lastId are all IGNORED (byte-identical payload, same first row every time) and there is no paginate route (404). Every response therefore carries complete, truncated and upstreamRows. truncated:true means positions beyond the page exist and cannot be retrieved at any price, and totalValueUsd is a FLOOR rather than the portfolio total. Rows arrive roughly largest-USD-first but not strictly (one inversion measured across three portfolios), so the truncated tail is probably - not provably - the smallest positions.\n\nWHAT totalValueUsd IS. The sum of holdings[].valueUsd in the payload you were served, and nothing else. It reconciles against summing the rows by construction; it does NOT reconcile against the FOMO app's portfolio figure. INCLUDED: stablecoin and cash-like rows (USDC was the largest single row on one sampled portfolio) and dust in full - 59 of 100 rows on one portfolio were under $1. EXCLUDED: otherEquity (equity counted upstream but outside the rows: 0.06, 3,492.80 and 0.22 on the three sampled portfolios), livePerpPnl and hyperliquidPerps (PnL and margin, not holdings - one sample carried +79,215.60 of perp PnL), nativeEvmBalances (native gas balances, a separate array), otherPnl/otherPnlV2 (PnL, never additive to a mark), and anything the cap truncated. Measured across 301 rows: zero negative values and zero rows flagged outside upstream equity.\n\n?chain= narrows the rows; count and totalValueUsd then describe that slice, truncated still describes the upstream page, and chainFiltered:true says so.\n\nEQUITY AND PERPETUAL DATA. complete, truncated and upstreamRows describe only the upstream holdings page; complete:true means the page was below its cap, not that margin, perpetual positions or total portfolio equity are verified. Missing or null marginSummary.accountValue, totalRawUsd or totalNtlPos are unknown, not zero. An empty hyperliquidPerps.positions array alongside unavailable account-equity fields does not establish a verified flat account. quoteBalance, perpUsdBalance and availableUsdc are not a documented total-equity measure; whether they include the reported PnL is not verified. Do not add these fields or livePerpPnl to totalValueUsd to infer combined equity. No documented endpoint currently provides verified combined spot, cash and perpetual-account equity with an upstream valuation timestamp. capturedAt is our snapshot capture time, not a guarantee that all components were valued then.",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/handleOrUserId"
+                    },
+                    {
+                        "name": "chain",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "solana|robinhood|base|bsc|eth (or a raw networkId). Narrows holdings to one chain."
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{ holdings: [...], count, totalValueUsd, upstreamRows, truncated, complete, completeness, totalValueUsdIncludes, byChain } or available:false. truncated:true = the upstream page cap was hit and the portfolio is larger than what is here."
+                    }
+                }
+            }
+        },
+        "/v2/users/{handle}/following": {
+            "get": {
+                "tags": [
+                    "traders"
+                ],
+                "summary": "Who a trader follows (discovery: whose calls does a winner watch?)",
+                "description": "Who a trader follows. FOMO currently serves at most 200 names per trader regardless of paging, below our 300-name request bound. The public response uses truncated and note to explain the upstream ceiling; it does not expose sourceCapped. Check complete on every response: a retry may resume a cached partial list, but completion on the next call is not guaranteed. Successful reads cost 250 credits per upstream page (about 50 names), with a minimum of 250. When the upstream page count is unavailable, the price is calculated from the names retrieved. Cached responses retain the page-based price; limit trims output without reducing pages billed. Read x-credits-cost for the actual charge. Wallets are not included.",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/handleOrUserId"
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false,
+                        "description": "Trim the returned list. The accepted request bound is 300, but FOMO currently serves at most 200 names per trader; larger limits do not bypass that ceiling or guarantee a complete list.",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 300,
+                            "default": 300
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{ handle, userId, count, following: [...], truncated, complete, cap, profileFollowing, and on a slow pull partial + retryable }. complete is true only when this is provably the trader's whole following list: an EMPTY list is complete only when FOMO's own profile count also says 0, and a list shorter than profileFollowing (FOMO's profile count, when we hold a fresh one) is never complete."
+                    },
+                    "404": {
+                        "description": "FOMO answered that no trader has this handle. Only FOMO's own answer produces a 404; a busy fleet produces a 503."
+                    },
+                    "503": {
+                        "description": "Nobody upstream answered (FOMO capacity busy or the live read timed out). This is NEVER a statement that the trader does not exist. Carries a Retry-After header plus retryable:true, retryAfterSeconds and reason; userId is present when the handle did resolve. Costs no credits."
+                    },
+                    "402": {
+                        "description": "Out of credits. Upgrade by card or top up in USDC. See https://fomoapi.io/pricing"
+                    }
+                }
+            }
+        },
+        "/v2/users/{handle}/followers": {
+            "get": {
+                "tags": [
+                    "traders"
+                ],
+                "summary": "Who follows a trader (the inverse of /following)",
+                "description": "Who follows a trader, the inverse of /v2/users/{handle}/following, with the same per-person shape. FOMO serves at most 200 followers per trader here and offers no cursor past them, so this is a sample of a trader's followers rather than the full list; sourceCapped and note say so on every response. A trader with 249,000 followers still returns 200. Costs 250 credits, flat. Wallets are not included.",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/handleOrUserId"
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false,
+                        "description": "Return fewer than the 200 FOMO gives us. Asking for more does not produce more.",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 200,
+                            "default": 200
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{ handle, userId, count, followers: [...], sourceCapped, note, cap, wallets }. Each follower carries handle, displayName, userId, avatar, verified, clan, bio, followers, following, trades, swapCount, volumeUsd, pnl24h, twitter, private, createdAt, accountAgeDays."
+                    },
+                    "404": {
+                        "description": "FOMO answered that no trader has this handle. Only FOMO's own answer produces a 404; a busy fleet produces a 503."
+                    },
+                    "503": {
+                        "description": "Nobody upstream answered (FOMO capacity busy or the live read timed out). This is NEVER a statement that the trader does not exist. Carries a Retry-After header plus retryable:true, retryAfterSeconds and reason; userId is present when the handle did resolve. Costs no credits."
+                    },
+                    "402": {
+                        "description": "Out of credits. Upgrade by card (renews monthly, and the listed price is the total - tax is included, not added at checkout) or top up in USDC on Solana. See https://fomoapi.io/pricing"
+                    }
+                }
+            }
+        },
+        "/v2/users/{handle}/spotlight": {
+            "get": {
+                "tags": [
+                    "traders"
+                ],
+                "summary": "FOMO's own pick of a trader's best trades and best theses",
+                "description": "FOMO picks these, not us. bestTrades[] and bestTheses[] each carry the token, average entry and exit, cost basis, realized and unrealized PnL, when the position opened and closed, and the written thesis with its like count. bestTheses are the trades whose thesis drew the most likes. 250 credits.",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/handleOrUserId"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{ handle, userId, bestTrades: [...], bestTheses: [...], note }"
+                    },
+                    "503": {
+                        "description": "The live read did not finish in time. retryable is true; ask again in a moment."
+                    },
+                    "402": {
+                        "description": "Out of credits. Upgrade by card (renews monthly, and the listed price is the total - tax is included, not added at checkout) or top up in USDC on Solana. See https://fomoapi.io/pricing"
+                    },
+                    "404": {
+                        "description": "Handle unknown to FOMO. Does not consume the allowance."
+                    }
+                }
+            }
+        },
+        "/v2/users/id/{userId}": {
+            "get": {
+                "tags": [
+                    "traders"
+                ],
+                "summary": "Resolve a userId back to a person (inverse of /v2/users/{handle})",
+                "description": "The inverse of /v2/users/{handle}. Thesis, alert and comment payloads emit a stable userId; this route resolves it to the same identity payload including both wallets, clan, account age and social counts. Costs 2,500 credits, the same as handle-based wallet resolution.",
+                "parameters": [
+                    {
+                        "name": "userId",
+                        "in": "path",
+                        "required": true,
+                        "description": "FOMO user id (a UUID), as emitted by the thesis, alert, holder and comment payloads.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The same shape as GET /v2/users/{handle}: handle, displayName, userId, wallets{solana,evm}, clan, followers, following, trades, volumeUsd, createdAt, accountAgeDays, verified."
+                    },
+                    "503": {
+                        "description": "The live read did not finish in time. retryable is true; ask again in a moment."
+                    },
+                    "402": {
+                        "description": "Out of credits. Upgrade by card (renews monthly, and the listed price is the total - tax is included, not added at checkout) or top up in USDC on Solana. See https://fomoapi.io/pricing"
+                    },
+                    "404": {
+                        "description": "FOMO does not know that userId. Does not consume the allowance."
+                    }
+                }
+            }
+        },
+        "/v2/trades/{tradeId}": {
+            "get": {
+                "tags": [
+                    "traders"
+                ],
+                "summary": "One trade in full detail",
+                "description": "Swaps, transfers, avg entry/exit, realized PnL, isDev, timestamps. Get a tradeId from /v2/users/{handle}/trades.",
+                "parameters": [
+                    {
+                        "name": "tradeId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "trade detail"
+                    },
+                    "404": {
+                        "description": "not found"
+                    }
+                }
+            }
+        },
+        "/v2/leaderboard/{window}": {
+            "get": {
+                "tags": [
+                    "leaderboards"
+                ],
+                "summary": "Ranked traders by PnL",
+                "description": "pnlUsd is source-reported leaderboard PnL rounded with Math.round to whole USD; this endpoint does not preserve cents or independently calculate PnL. Normalization uses the first available field: pnlUsd, pnl24h, pnl7d, pnl30d, totalPnL, pnl24hUsd. Realized/unrealized components, fees and window boundaries are not independently verified. capturedAt is our snapshot fetch time, not FOMO publication time. Successful live pulls share a cache per window. A failed pull can return a stored snapshot retaining its original capturedAt and source, including source=fomo-live from an earlier successful pull. Trader-board responses have no explicit stale/fallback flag or guaranteed capture cadence. Retain capturedAt and use userId for stable identity joins.",
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "name": "window",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "24h",
+                                "7d",
+                                "30d",
+                                "all"
+                            ]
+                        }
+                    },
+                    {
+                        "$ref": "#/components/parameters/leaderboardLimit"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{ traders: [{rank, handle, displayName, pnlUsd, volumeUsd, trades, followers, holdings, wallets{solana,evm}, topTokens[], verified}] } Every row carries userId, FOMO's stable id for that trader - use it against the /v2/users/{...}/ sub-resources so a handle rename cannot break your integration."
+                    },
+                    "400": {
+                        "description": "invalid window"
+                    }
+                }
+            }
+        },
+        "/v2/leaderboard/tokens/trending": {
+            "get": {
+                "tags": [
+                    "leaderboards",
+                    "tokens"
+                ],
+                "summary": "Token board: what fomo users are trading now",
+                "description": "Each successful read costs 250 credits, including unchanged cached results. The five-minute cache is shared across API keys within each API process and refreshed on a request after expiry, not on a publication schedule. capturedAt records when our API fetched the snapshot, not when FOMO originally published it; it is not a content version. No lightweight freshness endpoint, ETag/Last-Modified conditional requests, free HEAD checks, or token-board WebSocket/webhook notifications are currently supported. Retain source, capturedAt, ageHours and stale to identify live versus captured fallback data. Polling faster than the cache interval still consumes credits without guaranteeing a newer snapshot.",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/limit"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{ board, capturedAt, count, tokens: [{rank, image, token{name,symbol,address}, holders, network, priceUsd, change24h, marketCapUsd, volume24hUsd}] }. rank is the token's position in the captured FOMO board (1 = top); upstream ranks are preserved. A live fetch is attempted after the shared five-minute cache expires; requests within that window reuse the fetched snapshot. `source: live-fomo` includes cached successful pulls, while `source: captured` identifies the stored fallback used when FOMO did not answer. Check `capturedAt` to assess snapshot age; `stale: false` and `ageHours: 0` alone do not prove a new fetch or current app parity. `holders` is present on trending and graduated but NOT on most-held - FOMO does not send it on that board, so it is null rather than invented. `fomoBuyers` is NOT returned: FOMO has never populated it on these boards, so it was a guaranteed null on every row and the honeypot filter resting on it excluded nothing. It would have to be computed from our own trade data to mean anything."
+                    }
+                }
+            }
+        },
+        "/v2/leaderboard/tokens/most-held": {
+            "get": {
+                "tags": [
+                    "leaderboards",
+                    "tokens"
+                ],
+                "summary": "Token board: most-held tokens right now",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/limit"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "same shape as trending, minus `holders` (FOMO does not send it on this board). These are the tokens the most FOMO users hold; large caps can legitimately dominate this ranking. Assess freshness from the source and capture time. A live fetch is attempted after the shared five-minute cache expires; requests within that window reuse the fetched snapshot. `source: live-fomo` includes cached successful pulls, while `source: captured` identifies the stored fallback used when FOMO did not answer. Check `capturedAt` to assess snapshot age; `stale: false` and `ageHours: 0` alone do not prove a new fetch or current app parity. `holders` is present on trending and graduated but NOT on most-held - FOMO does not send it on that board, so it is null rather than invented. `fomoBuyers` is NOT returned: FOMO has never populated it on these boards, so it was a guaranteed null on every row and the honeypot filter resting on it excluded nothing. It would have to be computed from our own trade data to mean anything."
+                    }
+                }
+            }
+        },
+        "/v2/leaderboard/tokens/graduated": {
+            "get": {
+                "tags": [
+                    "leaderboards",
+                    "tokens"
+                ],
+                "summary": "Token board: graduated tokens",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/limit"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "same shape as trending. Tokens that have graduated, so these are small by nature - typically well under $1M market cap. A live fetch is attempted after the shared five-minute cache expires; requests within that window reuse the fetched snapshot. `source: live-fomo` includes cached successful pulls, while `source: captured` identifies the stored fallback used when FOMO did not answer. Check `capturedAt` to assess snapshot age; `stale: false` and `ageHours: 0` alone do not prove a new fetch or current app parity. `holders` is present on trending and graduated but NOT on most-held - FOMO does not send it on that board, so it is null rather than invented. `fomoBuyers` is NOT returned: FOMO has never populated it on these boards, so it was a guaranteed null on every row and the honeypot filter resting on it excluded nothing. It would have to be computed from our own trade data to mean anything."
+                    }
+                }
+            }
+        },
+        "/v2/thesis": {
+            "get": {
+                "tags": [
+                    "theses"
+                ],
+                "summary": "Recent theses across all coins (global feed)",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/limit"
+                    },
+                    {
+                        "name": "chain",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Return only theses on one chain: robinhood|solana|base|bsc|eth|arc (aliases hood/rh) or a raw chainId. Arc = 5042; robinhood = 4663, the largest share of FOMO thesis volume."
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{ theses: [{id, tradeId, avatar, tokenImage, text, handle, name, userId, equity, tradeUsd, isDev, ts, likes, replies, links, token{symbol,address}, networkId, chain}] }. avatar and tokenImage are nullable; each non-null value is a direct card-ready URL supplied by FOMO or a resident directory, without a per-card lookup. id is stable for deduplication; tradeId joins the related position and WebSocket thesis alert when FOMO supplied it."
+                    }
+                }
+            }
+        },
+        "/theses": {
+            "get": {
+                "tags": [
+                    "theses"
+                ],
+                "summary": "Alias of GET /v2/thesis (recent theses across all coins, global feed)",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/limit"
+                    },
+                    {
+                        "name": "chain",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Return only theses on one chain: robinhood|solana|base|bsc|eth|arc (aliases hood/rh) or a raw chainId. Arc = 5042; robinhood = 4663, the largest share of FOMO thesis volume."
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{ theses: [{id, tradeId, avatar, tokenImage, text, handle, name, userId, equity, tradeUsd, isDev, ts, likes, replies, links, token{symbol,address}, networkId, chain}] }. avatar and tokenImage are nullable; each non-null value is a direct card-ready URL supplied by FOMO or a resident directory, without a per-card lookup. id is stable for deduplication; tradeId joins the related position and WebSocket thesis alert when FOMO supplied it."
+                    }
+                }
+            }
+        },
+        "/v2/thesis/token/{mint}": {
+            "get": {
+                "tags": [
+                    "theses",
+                    "tokens"
+                ],
+                "summary": "Theses written about one coin, with history (the why behind trades)",
+                "parameters": [
+                    {
+                        "name": "mint",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "token contract address"
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "description": "Maximum rows returned after filtering and sorting, independent of the upstream page count.",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 200,
+                            "default": 50
+                        }
+                    },
+                    {
+                        "name": "network",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "sol",
+                                "bnb",
+                                "base",
+                                "eth",
+                                "arc"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "required": false,
+                        "description": "likes = the most-liked theses on this coin; recent = newest first. Omit for stored order.",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "likes",
+                                "recent"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "pages",
+                        "in": "query",
+                        "required": false,
+                        "description": "Request a bounded upstream history walk: 1-10 pages, default 1. Recent probes returned 25 theses per page; page size and completion can vary. The limit parameter defaults to 50 and caps returned rows at 200; pages=4&limit=100 requests about 100 rows. Timeouts and the current-holder fallback can return fewer rows. No fixed retention period or complete archive is guaranteed. Billed 1,250 credits per requested page. A live pull is attempted; a stored fallback is labeled source:snapshot and stale:true.",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 10,
+                            "default": 1
+                        }
+                    },
+                    {
+                        "name": "threshold",
+                        "in": "query",
+                        "required": false,
+                        "description": "Minimum position size in USD a thesis must sit on. Default 0 applies no minimum position size; e.g. threshold=10 drops dust positions. Results remain bounded by pages, limit and upstream availability; this does not guarantee complete history or app parity. Alias: minPositionUsd.",
+                        "schema": {
+                            "type": "number",
+                            "minimum": 0,
+                            "default": 0
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{ theses: [{id, tradeId, avatar, tokenImage, ...}] } or available:false. avatar and tokenImage are nullable; non-null values are card-ready URLs with no per-card lookup. id is FOMO's native thesis/comment id when available; tradeId joins the related position and WebSocket thesis alert."
+                    }
+                }
+            }
+        },
+        "/token/{address}/theses": {
+            "get": {
+                "tags": [
+                    "theses",
+                    "tokens"
+                ],
+                "summary": "Alias of GET /v2/thesis/token/{mint} (theses written about one coin, with history)",
+                "parameters": [
+                    {
+                        "name": "address",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "token contract address"
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "description": "Maximum rows returned after filtering and sorting, independent of the upstream page count.",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 200,
+                            "default": 50
+                        }
+                    },
+                    {
+                        "name": "network",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "sol",
+                                "bnb",
+                                "base",
+                                "eth",
+                                "arc"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "required": false,
+                        "description": "likes = the most-liked theses on this coin; recent = newest first. Omit for stored order.",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "likes",
+                                "recent"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "pages",
+                        "in": "query",
+                        "required": false,
+                        "description": "Request a bounded upstream history walk: 1-10 pages, default 1. Recent probes returned 25 theses per page; page size and completion can vary. The limit parameter defaults to 50 and caps returned rows at 200; pages=4&limit=100 requests about 100 rows. Timeouts and the current-holder fallback can return fewer rows. No fixed retention period or complete archive is guaranteed. Billed 1,250 credits per requested page. A live pull is attempted; a stored fallback is labeled source:snapshot and stale:true.",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 10,
+                            "default": 1
+                        }
+                    },
+                    {
+                        "name": "threshold",
+                        "in": "query",
+                        "required": false,
+                        "description": "Minimum position size in USD a thesis must sit on. Default 0 applies no minimum position size; e.g. threshold=10 drops dust positions. Results remain bounded by pages, limit and upstream availability; this does not guarantee complete history or app parity. Alias: minPositionUsd.",
+                        "schema": {
+                            "type": "number",
+                            "minimum": 0,
+                            "default": 0
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{ theses: [{id, tradeId, avatar, tokenImage, ...}] } or available:false. avatar and tokenImage are nullable; non-null values are card-ready URLs with no per-card lookup. id is FOMO's native thesis/comment id when available; tradeId joins the related position and WebSocket thesis alert."
+                    }
+                }
+            }
+        },
+        "/v2/thesis/user/{id}": {
+            "get": {
+                "tags": [
+                    "theses"
+                ],
+                "summary": "Every thesis by one trader",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "handle or fomo userId"
+                    },
+                    {
+                        "$ref": "#/components/parameters/limit"
+                    },
+                    {
+                        "name": "chain",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Return only this trader's theses on one chain: robinhood|solana|base|bsc|eth|arc or a raw chainId. Arc = 5042."
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "likes",
+                                "recent"
+                            ]
+                        },
+                        "description": "likes = most-liked; recent = newest"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{ theses: [{id, tradeId, avatar, tokenImage, ...}] }. avatar and tokenImage are nullable; non-null values are card-ready URLs with no per-card lookup. id is stable for deduplication; tradeId joins the related position and WebSocket thesis alert."
+                    }
+                }
+            }
+        },
+        "/v2/thesis/user/{id}/token/{address}": {
+            "get": {
+                "tags": [
+                    "theses"
+                ],
+                "summary": "One trader's theses about one specific token",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "address",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "$ref": "#/components/parameters/limit"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{ theses: [{id, tradeId, avatar, tokenImage, ...}] }. avatar and tokenImage are nullable; non-null values are card-ready URLs with no per-card lookup. id is stable for deduplication; tradeId joins the related position and WebSocket thesis alert."
+                    }
+                }
+            }
+        },
+        "/token/{address}/holders": {
+            "get": {
+                "tags": [
+                    "tokens"
+                ],
+                "summary": "FOMO top holders, with a labeled tracked-trader fallback",
+                "parameters": [
+                    {
+                        "name": "address",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "$ref": "#/components/parameters/limit"
+                    },
+                    {
+                        "name": "network",
+                        "in": "query",
+                        "description": "Chain ID or supported chain name when the token is not in the directory; for example 1399811149 (Solana) or 4663 (Robinhood). This route uses network, not networkId.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "chain",
+                        "in": "query",
+                        "description": "Alias for network. If both are supplied, network takes precedence.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Live top-holder rows with scope, source, count and nullable totalHolders; a last-good response also has stale=true and ageSeconds. A captured-balance fallback has scope=tracked-traders. An unavailable response has available=false and reason=no-data or unknown-chain."
+                    },
+                    "503": {
+                        "description": "Upstream did not answer and no last-good list is available. retryable=true, reason=upstream-unavailable, retryAfterSec gives the wait. Not billed.",
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds to wait before retrying.",
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "When the chain is known and live pulling is enabled, scope=live-top-holders returns FOMO top holders. totalHolders is the upstream total or null, while count is the number of live rows returned after limit. There is no pagination or completeness flag, and app-chart count parity is not verified. source=live-fomo can include cached data and does not establish publication time; normal live responses have no capture timestamp. A failed refresh can serve source=live-fomo-stale with stale=true and ageSeconds. Without last-good data, upstream failure returns a retryable, unbilled 503. When the chain is unknown or live pulling is disabled, captured balances can return scope=tracked-traders; its count is the captured match count before limit, and totalHolders is absent. available=false does not establish zero holders."
+            }
+        },
+        "/v2/search": {
+            "get": {
+                "tags": [
+                    "search"
+                ],
+                "summary": "Unified search over traders AND tokens",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/q"
+                    },
+                    {
+                        "name": "type",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "traders",
+                                "tokens",
+                                "all"
+                            ]
+                        }
+                    },
+                    {
+                        "$ref": "#/components/parameters/limit"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{ results: [{type:'trader'|'token', ...}] } Every row carries userId, FOMO's stable id for that trader - use it against the /v2/users/{...}/ sub-resources so a handle rename cannot break your integration."
+                    }
+                }
+            }
+        },
+        "/v2/tokens/search": {
+            "get": {
+                "tags": [
+                    "search",
+                    "tokens"
+                ],
+                "summary": "Token-only search by symbol or name",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/q"
+                    },
+                    {
+                        "$ref": "#/components/parameters/limit"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{ tokens: [{symbol, address, name, image, marketCapUsd, networkId}] }"
+                    }
+                }
+            }
+        },
+        "/v2/alerts": {
+            "get": {
+                "tags": [
+                    "activity"
+                ],
+                "summary": "Recent activity (buys, sells, theses) - REST fallback for the WebSocket. LARGE trades only.",
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/limit"
+                    },
+                    {
+                        "name": "type",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "buy|sell|thesis|..."
+                    },
+                    {
+                        "name": "chain",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Filter by chain: friendly name (robinhood|solana|base|bsc|eth|arc, aliases hood/rh) or raw chainId. Arc = 5042; robinhood = 4663 (FOMO's most active chain)."
+                    },
+                    {
+                        "name": "since",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "ISO timestamp or unix (seconds or millis)"
+                    },
+                    {
+                        "name": "trader",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Only this trader's alerts, matched case-insensitively on the handle (aliases ?user=, ?handle=). Prefer ?userId= where you have it: a handle can be renamed."
+                    },
+                    {
+                        "name": "userId",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Only this trader's alerts, by FOMO's own stable userId (the field every alert carries). Survives a handle rename, so this is the right key for a long-lived copy-trading subscription."
+                    },
+                    {
+                        "name": "token",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Symbol or contract address."
+                    },
+                    {
+                        "name": "source",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "feed|push"
+                    },
+                    {
+                        "name": "cursor",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Opaque checkpoint from a previous response's nextCursor. Returns only events STRICTLY newer. Use this, not ?since=, to resume: ?since= is inclusive and alert timestamps are not unique. Malformed values return 400."
+                    },
+                    {
+                        "name": "before",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Opaque cursor from a previous response's oldestCursor. Returns only events STRICTLY older - how you walk back through a gap bigger than one page. Keep sending your ?cursor= or ?since= alongside it as the floor."
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{ alerts: [{...,token,tokenAddress,chainId,chain,source:'feed'|'push',ts}] } - chain is the friendly name (e.g. 'robinhood' for chainId 4663; 'arc' for 5042). Thesis alerts additionally carry nullable avatar and tokenImage; non-null values are card-ready URLs without a per-event lookup. Every alert carries FOMO's own ids: eventId (stable per event, the dedupe key), userId (the trader; survives a handle rename), and tradeId / swapId / transferId identifying the object the event is about, so an alert joins straight to /v2/users/{userId}/positions and /v2/trades/{tradeId} with no name lookup. Measured on the live stream: 30 of 30 feed alerts carried userId and tradeId. swapId and transferId are null on buy/sell events and are passed through only when FOMO sends them; push-sourced alerts (source:\"push\") carry none of these ids. RECOVERY CONTRACT: every response also carries nextCursor, oldestCursor, hasMore, newestTs, oldestTs and order. ts is FOMO's own whole-second event timestamp and tracks EXECUTION, not publication (median 0 ms from the block on proven matches); it is not your delivery time, and execTs is the block in milliseconds. See WS /ws/alerts for the measurement. Alert timestamps are NOT unique - measured over 200 consecutive live alerts, 25 distinct ts values were each shared by 2-3 events - and ?since= is INCLUSIVE (ts >= since), so resuming on a timestamp re-delivers the whole boundary millisecond and no timestamp exists that skips the duplicates without also skipping real events. Store nextCursor and resume with ?cursor=. If hasMore is true, repeat with ?before=<oldestCursor> (keeping your floor) until hasMore is false, then advance the checkpoint to the nextCursor from the newest page. Ordering is ts desc then id desc - a total order, so page boundaries are stable. `id` is the same dedupe key the websocket uses."
+                    }
+                },
+                "description": "TYPES ACTUALLY OBSERVED over 500 consecutive alerts (2026-09-25): sell 45%, buy 34%, thesis 17%, perp 3%, listing <1%. transfer/milestone/recap are in the contract but effectively never arrive (50 push events in total against 26,562 feed events). SIZE FLOOR - this is NOT every trade. FOMO's app feed emits only its own LARGE_* events, so small trades never reach us. Measured 2026-09-25 over 500 consecutive alerts: smallest buy $2,985, ZERO below $2,950 - a hard cliff near $3,000 of position value. Against FOMO's own per-token feed for one active coin, 86% of real buys and 88% of real sells were under $3,000 and none appeared here. The floor is FOMO's, upstream of our ingest; we apply no minimum (verified by injecting $1 and $0 events end to end). IT GATES THESIS EVENTS TOO: measured 2026-09-30, a coin whose 25 theses all sat under $3,000 (largest position $899) produced ZERO alerts of any type here while GET /v2/thesis/token returned all 25; a control coin with 7 of 25 theses above $3,000 did appear. For theses on a small-cap, poll GET /v2/thesis/token/{mint} - the socket cannot carry what FOMO never publishes. Do not compute volume, trade counts or market share from this stream."
+            }
+        },
+        "/ws/alerts": {
+            "get": {
+                "tags": [
+                    "activity"
+                ],
+                "summary": "App feed stream, one of TWO WebSockets (wss://api.fomoapi.io/ws/alerts)",
+                "description": "Not HTTP - open a WebSocket to wss://api.fomoapi.io/ws/alerts. This APP FEED STREAM mirrors the FOMO app and is distinct from /ws/trades, the Growth/Scale on-chain stream that arrives about 3.5 seconds earlier (measured p50 on production 2026-09-29 by two independent methods, 2.2s paired and 3.5s per-leg; the ~15 seconds published here previously did not reproduce) and, more importantly, carries EVERY fill rather than only the LARGE_* events the app feed emits. Paid keys are realtime; a free key is realtime for seven days then delayed 15 seconds; a keyless connection is delayed 60 seconds. Receive {type:'welcome',realtime,delaySeconds} then {type:'alert',...,token,tokenAddress,chainId,chain,source}. Thesis alerts additionally include stable eventId, related tradeId when present, and nullable avatar/tokenImage URLs; a non-null URL is directly renderable and no per-event profile or token lookup is made. Scope with ?trader=<handle>; filter with ?chain=robinhood|solana|base|bsc|eth|arc|monad|hyperliquid (Arc = chainId 5042; Robinhood = 4663), ?type=buy|sell|thesis|perp, ?token=<symbol|address>, or ?source=feed|push. tradeUsd is the fill size when upstream sends it; positionValueUsd on buys is the post-fill position mark; realizedPnlUsd on sells is signed. AND CUMULATIVE FOR THE POSITION, not this sell. If tradeUsd is absent, treat usdValue as size unknown rather than a purchase amount. tradeId identifies a position, which can contain many fills; joining it to GET /v2/trades/{tradeId} does not identify the alert's exact settlement transaction. See the EXACT FILL and COVERAGE guidance below for optional on-chain attribution fields and their limits. SIZE FLOOR - this is NOT every trade. FOMO's app feed emits only its own LARGE_* events, so small trades never reach us. Measured 2026-09-25 over 500 consecutive alerts: smallest buy $2,985, ZERO below $2,950 - a hard cliff near $3,000 of position value. Against FOMO's own per-token feed for one active coin, 86% of real buys and 88% of real sells were under $3,000 and none appeared here. The floor is FOMO's, upstream of our ingest; we apply no minimum (verified by injecting $1 and $0 events end to end). IT GATES THESIS EVENTS TOO: measured 2026-09-30, a coin whose 25 theses all sat under $3,000 (largest position $899) produced ZERO alerts of any type here while GET /v2/thesis/token returned all 25; a control coin with 7 of 25 theses above $3,000 did appear. For theses on a small-cap, poll GET /v2/thesis/token/{mint} - the socket cannot carry what FOMO never publishes. Do not compute volume, trade counts or market share from this stream. CREDITS: the websocket is FREE. The connection, every message and every reconnect cost ZERO credits on every plan; only REST calls are billed. PAID KEYS ARE NEVER DELAYED - any paid plan is realtime and no per-request counter can demote it to the delayed feed. TIMESTAMPS, and this has been wrong twice - first as \"publish time\", then as \"whole-second\". `ts` is FOMO's own event timestamp QUANTISED TO FIVE SECONDS: 500 of 500 buy/sell alerts sampled 2026-09-29 carried an exact multiple of 5000 ms, and none fell on an odd second. It tracks EXECUTION rather than publication - median of ts minus block time is -878 ms over 130 proven on-chain matches - and the negative sign is the giveaway that the bucket is floored, so ts sits 0-5s BEFORE the true moment. It is NOT your delivery time (the socket hands an event over roughly 1-6 seconds after its ts, median 5.75s) and NOT precise to better than 5 seconds, so never diff two alerts and call the result a latency, and never sort on ts alone - use the (ts, id) cursor, because a 5-second bucket puts many events on the same value. Use execTs, the block in milliseconds, for when the trade actually executed. EXACT FILL: joining tradeId to /v2/trades/{tradeId} does NOT identify the fill - one sampled position returned 2,243 swaps, so time-matching inside it is a guess. Instead a buy/sell alert may carry txHash (the exact on-chain execution), execTs (when the chain saw it, ms), execLagMs (ts - execTs) and tradeUsd (the size of THAT fill, with tradeUsdSource naming the pricing), matched against the on-chain stream on chain+token+side+trader within a window and attached ONLY when exactly one execution matches. fillMatch tells you which case you are in: 'onchain-exact' is proven; 'ambiguous' means two or more of this trader's executions on the same token and side fall in the window (a split or repeatedly-added position), in which case fillCandidates and txHashCandidates list them and nothing is attached as the fill; absent means no match and the fields are absent. We never choose a winner out of several. swapId is ALWAYS null - it is FOMO's own identifier and cannot be derived from a chain. COVERAGE is partial by construction: the on-chain stream covers solana and robinhood only (71% of buy/sell alerts over 24h, n=6,653) and can only name a trader whose wallet we have proven (73% of those), so about 52% of buy/sell alerts are eligible at all. WALLET COVERAGE: we resolve ONE verified main wallet per chain per trader (mainSolana / mainEvm), not an exhaustive list of every address a trader controls - a second trading address is not covered, and that is the main reason an eligible alert still arrives with no txHash. MONEY, one more time because it is the easiest field here to double-count: realizedPnlUsd on a sell is the RUNNING TOTAL realised on that position, not the PnL of this sell. Measured over 190 sell alerts on 2026-09-29, 31 positions produced more than one sell alert and the value only ever grew within a tradeId - one position published -2465.61, -6501.01, -8654.27, -10856.33, so summing them gives -28,477 against a position that had realised -10,856. Take the LAST value per position, or difference consecutive values within a tradeId for the per-sell amount, which FOMO does not send.",
+                "parameters": [
+                    {
+                        "name": "trader",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "chain",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "robinhood|solana|base|bsc|eth|arc or raw chainId; Arc = 5042; robinhood = 4663"
+                    },
+                    {
+                        "name": "type",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "source",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "token",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Symbol or contract address."
+                    },
+                    {
+                        "name": "userId",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Follow one trader by FOMO's stable userId instead of by handle. Prefer this for a long-lived subscription: a handle can be renamed, the userId cannot. Also accepted in a runtime {\"action\":\"subscribe\",\"userId\":\"...\"} message."
+                    }
+                ],
+                "responses": {
+                    "101": {
+                        "description": "WebSocket upgrade Every alert carries FOMO's own ids: eventId (stable per event, the dedupe key), userId (the trader; survives a handle rename), and tradeId / swapId / transferId identifying the object the event is about, so an alert joins straight to /v2/users/{userId}/positions and /v2/trades/{tradeId} with no name lookup. Measured on the live stream: 30 of 30 feed alerts carried userId and tradeId. swapId and transferId are null on buy/sell events and are passed through only when FOMO sends them; push-sourced alerts (source:\"push\") carry none of these ids."
+                    }
+                }
+            }
+        },
+        "/ws/trades": {
+            "get": {
+                "tags": [
+                    "activity"
+                ],
+                "summary": "On-chain stream, the second WebSocket (wss://api.fomoapi.io/ws/trades)",
+                "description": "Not HTTP - open a WebSocket to wss://api.fomoapi.io/ws/trades?key=YOUR_API_KEY. This is the ON-CHAIN STREAM and it is a DIFFERENT stream from /ws/alerts. It carries the same FOMO trades, but read straight off the chain rather than from the app's feed, so each trade arrives about 15 SECONDS BEFORE it appears in the app. That head start is what it is for. Requires a GROWTH or SCALE key; Starter and Free keys are refused here and should use /ws/alerts, which is realtime but only as early as the app itself. Filter with ?chain=robinhood|solana.",
+                "parameters": [
+                    {
+                        "name": "key",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Growth or Scale API key"
+                    },
+                    {
+                        "name": "chain",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "robinhood|solana"
+                    }
+                ],
+                "responses": {
+                    "101": {
+                        "description": "WebSocket upgrade; trades stream as JSON messages"
+                    },
+                    "403": {
+                        "description": "Key's plan does not include the on-chain stream (needs growth or scale). Use /ws/alerts instead."
+                    }
+                }
+            }
+        },
+        "/v2/token/{address}/devs": {
+            "get": {
+                "tags": [
+                    "tokens"
+                ],
+                "summary": "Deployer and insider holdings, with each dev's own thesis",
+                "description": "The deployer and insider positions on a token, each with the dev's own written thesis. The cheapest rug signal FOMO has: a deployer quietly closing his own bag shows up here before anywhere else. Each row carries handle, wallet, isDev, amount, valueUsd, costBasisUsd, realizedPnlUsd, unrealizedPnlUsd, averageEntryPrice, averageHoldTimeSeconds, tradeId and thesis. An empty list means FOMO knows of no dev holding, not that the token is safe. 250 credits.",
+                "parameters": [
+                    {
+                        "name": "address",
+                        "in": "path",
+                        "required": true,
+                        "description": "Token contract address.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "networkId",
+                        "in": "query",
+                        "required": false,
+                        "description": "FOMO network id, e.g. 4663 Robinhood Chain or 1399811149 Solana. Required only for a token outside our directory.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{ token, networkId, chain, count, devs: [...], note }"
+                    },
+                    "503": {
+                        "description": "The live read did not finish in time. retryable is true; ask again in a moment."
+                    },
+                    "402": {
+                        "description": "Out of credits. Upgrade by card (renews monthly, and the listed price is the total - tax is included, not added at checkout) or top up in USDC on Solana. See https://fomoapi.io/pricing"
+                    },
+                    "400": {
+                        "description": "The token is not in our directory and no networkId was passed."
+                    }
+                }
+            }
+        },
+        "/v2/token/{address}/stats": {
+            "get": {
+                "tags": [
+                    "tokens"
+                ],
+                "summary": "Buy/sell flow and holder concentration (5m / 1h / 4h / 24h)",
+                "description": "Buy and sell FLOW, which candles do not tell you. windows{5m,1h,4h,24h} each carry buys, sells, uniqueBuyers, uniqueSellers, buyVolumeUsd, sellVolumeUsd, netVolumeUsd and buySellRatio, plus top-level holders and top10HoldersPercent. Candles say what the price did; this says who was pushing it. FOMO sends the volumes as strings and we return them as numbers. 250 credits.",
+                "parameters": [
+                    {
+                        "name": "address",
+                        "in": "path",
+                        "required": true,
+                        "description": "Token contract address.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "networkId",
+                        "in": "query",
+                        "required": false,
+                        "description": "FOMO network id, e.g. 4663 Robinhood Chain or 1399811149 Solana. Required only for a token outside our directory.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{ token, networkId, chain, holders, top10HoldersPercent, lowFees, windows{5m,1h,4h,24h} }"
+                    },
+                    "503": {
+                        "description": "The live read did not finish in time. retryable is true; ask again in a moment."
+                    },
+                    "402": {
+                        "description": "Out of credits. Upgrade by card (renews monthly, and the listed price is the total - tax is included, not added at checkout) or top up in USDC on Solana. See https://fomoapi.io/pricing"
+                    },
+                    "400": {
+                        "description": "The token is not in our directory and no networkId was passed."
+                    }
+                }
+            }
+        },
+        "/v2/token/{address}/warnings": {
+            "get": {
+                "tags": [
+                    "tokens"
+                ],
+                "summary": "Coin warnings FOMO shows before a trade",
+                "description": "The warning box on a FOMO coin page, as data. buyDisabled / sellDisabled / tradingDisabled say whether FOMO lets anyone trade it; warnings[] carries {name, description, severity, type} for each issue, where type is FOMO's stable code (e.g. HIGH_TRANSFER_FEE) and severity is MODERATE or SEVERE (e.g. Unsellable token, Zero liquidity, Few holders, Unverified token), severity SEVERE for the critical ones. allowlisted is true when FOMO vouches for the coin. An empty list means FOMO raised no warning, not that the token is safe. 250 credits.",
+                "parameters": [
+                    {
+                        "name": "address",
+                        "in": "path",
+                        "required": true,
+                        "description": "Token contract address.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "networkId",
+                        "in": "query",
+                        "required": false,
+                        "description": "FOMO network id, e.g. 4663 Robinhood Chain or 1399811149 Solana. Required only for a token outside our directory.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{ token, networkId, chain, buyDisabled, sellDisabled, tradingDisabled, allowlisted, allowlistNote, severe, count, warnings[{name, description, severity, type}], note }"
+                    },
+                    "503": {
+                        "description": "The live read did not finish in time. retryable is true; ask again in a moment."
+                    },
+                    "402": {
+                        "description": "Out of credits. Upgrade by card (renews monthly, and the listed price is the total - tax is included, not added at checkout) or top up in USDC on Solana. See https://fomoapi.io/pricing"
+                    },
+                    "400": {
+                        "description": "The token is not in our directory and no networkId was passed."
+                    }
+                }
+            }
+        },
+        "/v2/tokens/activity": {
+            "get": {
+                "tags": [
+                    "tokens"
+                ],
+                "summary": "Coordinated-flow board: several traders hitting one coin at once",
+                "description": "FOMO's coordinated-flow board: several DISTINCT traders hitting the same coin inside a short window, with the names. Each event carries side, token, windowMinutes, uniqueTraders, trades, volumeUsd, priceChangePercent, marketCapUsd and traders[]. This is not the same data as /v2/alerts, which carries large_buy, large_sell and thesis_created and no multi-user events at all. CAVEAT: the board is FOMO's and FOMO stopped publishing to it on 2026-08-23, so every response carries newestEventAt, newestEventAgeHours and, once past six hours, stale:true and a note. For live flow use /v2/alerts or WSS /ws/alerts. 250 credits.",
+                "parameters": [
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false,
+                        "description": "1-100, default 50.",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 100,
+                            "default": 50
+                        }
+                    },
+                    {
+                        "name": "side",
+                        "in": "query",
+                        "required": false,
+                        "description": "buy or sell.",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "buy",
+                                "sell"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "minTraders",
+                        "in": "query",
+                        "required": false,
+                        "description": "Only events where at least this many distinct traders took part.",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{ count, events: [...], hasNextPage, newestEventAt, newestEventAgeHours, stale, note }"
+                    },
+                    "503": {
+                        "description": "The live read did not finish in time. retryable is true; ask again in a moment."
+                    },
+                    "402": {
+                        "description": "Out of credits. Upgrade by card (renews monthly, and the listed price is the total - tax is included, not added at checkout) or top up in USDC on Solana. See https://fomoapi.io/pricing"
+                    }
+                }
+            }
+        },
+        "/v2/trades/{tradeId}/comments": {
+            "get": {
+                "tags": [
+                    "trades"
+                ],
+                "summary": "The thesis thread on one trade",
+                "description": "Every comment on one trade: text, author userId, likes, createdAt, parentId (set on a reply, null on a top-level thesis) and any links the author embedded, plus FOMO's own olderThesisCount and newerThesisCount for how many theses that trader wrote on the position before and after. We print replies:N in several payloads and until now there was no way to read them. Authors arrive as a bare userId with no handle; resolve one with GET /v2/users/id/{userId}. 250 credits.",
+                "parameters": [
+                    {
+                        "name": "tradeId",
+                        "in": "path",
+                        "required": true,
+                        "description": "Trade id, from /v2/users/{handle}/trades or /v2/users/{handle}/spotlight.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false,
+                        "description": "1-200, default 100.",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 200,
+                            "default": 100
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{ tradeId, count, comments: [...], hasNextPage, note }"
+                    },
+                    "503": {
+                        "description": "The live read did not finish in time. retryable is true; ask again in a moment."
+                    },
+                    "402": {
+                        "description": "Out of credits. Upgrade by card (renews monthly, and the listed price is the total - tax is included, not added at checkout) or top up in USDC on Solana. See https://fomoapi.io/pricing"
+                    }
+                }
+            }
+        },
+        "/v2/users/{handle}/swaps": {
+            "get": {
+                "summary": "A trader's individual fills (swaps)",
+                "description": "Individual fills, newest first. Distinct from /trades, which returns positions with an averaged entry and exit. One call returns 100 fills and a nextCursor; pass it back as ?cursor= to page older fills, and keep going while nextCursor is not null. tradeIdIn/tradeIdOut join each fill back to its position. 250 credits.",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/handleOrUserId"
+                    },
+                    {
+                        "$ref": "#/components/parameters/limit"
+                    },
+                    {
+                        "name": "cursor",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Page older results. On /trades and /positions start with cursor=start, then pass each response's nextCursor back here while it is not null (25 closed trades per page). On /swaps the first call already returns a nextCursor (100 fills per page). Billed 250 credits per page."
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Swaps PAGING: one call returns 100 fills plus a nextCursor. Pass it back as ?cursor= and keep going while nextCursor is not null (measured 500 fills over 5 pages, no duplicates, 250 credits per page). ?tokenAddress= scopes a fresh window to one token, and ?deep=1 accumulates across calls."
+                    }
+                }
+            }
+        },
+        "/v2/users/{handle}/positions": {
+            "get": {
+                "tags": [
+                    "traders"
+                ],
+                "summary": "A trader's positions (clearer name for /trades)",
+                "description": "Identical to /v2/users/{handle}/trades: positions, a token aggregated into one row with an averaged entry and exit. /trades remains as the legacy alias.",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/handleOrUserId"
+                    },
+                    {
+                        "$ref": "#/components/parameters/limit"
+                    },
+                    {
+                        "name": "deep",
+                        "in": "query",
+                        "required": false,
+                        "description": "1 (or true) for the full fan-out, or N to buy only N upstream calls. Each call that answers costs 250 credits. Omit for the ordinary single-call behaviour at 250 credits.",
+                        "schema": {
+                            "type": "string",
+                            "example": "1"
+                        }
+                    },
+                    {
+                        "$ref": "#/components/parameters/tradeStatus"
+                    },
+                    {
+                        "name": "cursor",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Page older results. On /trades and /positions start with cursor=start, then pass each response's nextCursor back here while it is not null (25 closed trades per page). On /swaps the first call already returns a nextCursor (100 fills per page). Billed 250 credits per page."
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{ key, kind, count, trades: [...] }. With ?deep also closedTotalOnFomo (FOMO's real total), perChainClosedTotal, upstreamCalls, partial (some chains did not answer in time; you were only charged for the ones that did) and complete:false. Each row carries the full position economics: costBasisUsd, boughtAmount (a real buy), soldAmount, transferredInAmount (tokens received, not purchased), transferredOutAmount, avgTransferInPrice, avgTransferOutPrice, priceUsd (current) and userId. amount reconciles as boughtAmount - soldAmount + transferredInAmount - transferredOutAmount. avgEntryPrice is null EXACTLY when the position was never bought: measured across 150 positions on 6 traders, all 76 null-entry rows had boughtAmount 0, so a null means the tokens were received rather than that the data is missing. Where there is a buy, costBasisUsd / boughtAmount gives entry."
+                    }
+                }
+            }
+        },
+        "/status": {
+            "get": {
+                "operationId": "getStatus",
+                "summary": "Service status",
+                "description": "Keyless and free. Reports whether FOMO API itself is healthy, so a caller can tell our outage from a bug in their own integration. `status` is operational, degraded or down, with a component breakdown: `api`; `liveData` (live trader lookups, judged on a 5-minute success rate); `alertStream` (judged on silence since the last event); `onchainStream` (the /ws/trades on-chain feed, Growth and Scale only). Overall status is degraded when one customer path is down but others are serving; down means the API or all customer paths are down. Always returns HTTP 200 even when degraded, because it reports a status rather than having one. Cached 15s. /v2/status returns the same payload.",
+                "security": [],
+                "responses": {
+                    "200": {
+                        "description": "Current service status",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "enum": [
+                                                "operational",
+                                                "degraded",
+                                                "down"
+                                            ]
+                                        },
+                                        "updatedAt": {
+                                            "type": "string",
+                                            "format": "date-time"
+                                        },
+                                        "components": {
+                                            "type": "object",
+                                            "properties": {
+                                                "api": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "status": {
+                                                            "type": "string"
+                                                        }
+                                                    }
+                                                },
+                                                "liveData": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "status": {
+                                                            "type": "string"
+                                                        },
+                                                        "successRate": {
+                                                            "type": "number"
+                                                        },
+                                                        "responseSuccessRate": {
+                                                            "type": "number"
+                                                        },
+                                                        "sampledLookups": {
+                                                            "type": "integer"
+                                                        },
+                                                        "sampledResponses": {
+                                                            "type": "integer"
+                                                        }
+                                                    }
+                                                },
+                                                "alertStream": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "status": {
+                                                            "type": "string"
+                                                        },
+                                                        "lastEventSecondsAgo": {
+                                                            "type": "integer"
+                                                        }
+                                                    }
+                                                },
+                                                "onchainStream": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "status": {
+                                                            "type": "string"
+                                                        },
+                                                        "plans": {
+                                                            "type": "array",
+                                                            "items": {
+                                                                "type": "string"
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        "note": {
+                                            "type": "string",
+                                            "description": "Present only when not operational: what is affected and what still works."
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "securitySchemes": {
+            "bearerAuth": {
+                "type": "http",
+                "scheme": "bearer",
+                "description": "API key sent as authorization: Bearer YOUR_API_KEY - the documented default. ALSO ACCEPTED and exactly equivalent: the x-api-key header (see apiKeyHeader), ?key= / ?apiKey= / ?api_key= on the query string, and the bare key in the Authorization header with no \"Bearer \" prefix. Bearer-only used to be the truth, and a valid key sent as X-API-Key was treated as no key at all. Required for all HTTP data endpoints; only GET /v1 and GET /health are keyless discovery routes. A normal read or leaderboard call costs 250 credits, GET /v2/alerts costs 125, a thesis page costs 1,250, and wallet resolution costs 2,500. HTTP 402 means the key has exhausted its credits. A 401 names which place the key was read from, so a header mistake is distinguishable from a bad key. WebSockets use query-key access and have stream-specific rules documented on /ws/alerts and /ws/trades. Create a free key at https://fomoapi.io/dashboard and see current allowances at https://fomoapi.io/pricing."
+            },
+            "apiKeyHeader": {
+                "type": "apiKey",
+                "in": "header",
+                "name": "X-API-Key",
+                "description": "The same API key in the X-API-Key header. Accepted as an equivalent alternative to authorization: Bearer, which remains the documented default. Listed because many HTTP clients and generated SDKs send this header by default."
+            },
+            "apiKeyQuery": {
+                "type": "apiKey",
+                "in": "query",
+                "name": "key",
+                "description": "The same API key on the query string (?key=, ?apiKey= or ?api_key=). Accepted for browsers and one-liners that cannot set a header; prefer a header where you can, since query strings are logged by intermediaries. This is also how the websockets have always taken a key."
+            }
+        },
+        "parameters": {
+            "handle": {
+                "name": "handle",
+                "in": "path",
+                "required": true,
+                "schema": {
+                    "type": "string"
+                },
+                "description": "trader handle, case-insensitive, optional leading @"
+            },
+            "limit": {
+                "name": "limit",
+                "in": "query",
+                "schema": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100,
+                    "default": 50
+                }
+            },
+            "q": {
+                "name": "q",
+                "in": "query",
+                "required": true,
+                "schema": {
+                    "type": "string"
+                },
+                "description": "search query"
+            },
+            "leaderboardLimit": {
+                "name": "limit",
+                "in": "query",
+                "description": "Rows to return. FOMO's own ceiling on this board, measured per window: 150 on 24h/7d/30d, 100 on all. Higher values clamp. Billed 250 credits per call at any limit.",
+                "schema": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 150,
+                    "default": 150
+                }
+            },
+            "tradeStatus": {
+                "name": "status",
+                "in": "query",
+                "description": "Narrow to open or closed trades. Opens sort ahead of closed and limit caps at 200, so a trader with 200+ open positions fills the page and closed trades are cut. Use status=closed to read closed history.",
+                "schema": {
+                    "type": "string",
+                    "enum": [
+                        "open",
+                        "closed",
+                        "all"
+                    ]
+                }
+            },
+            "handleOrUserId": {
+                "name": "handle",
+                "in": "path",
+                "required": true,
+                "schema": {
+                    "type": "string"
+                },
+                "description": "trader handle (case-insensitive, optional leading @) OR the trader's FOMO userId, a UUID such as 254245a7-575a-51be-9bc3-090a924789eb. Both forms return identical data. Prefer the userId if you store one: a handle can be renamed by its owner, and the id cannot. The id form is also marginally faster, because the handle form spends a lookup arriving at exactly that id. Same credit cost either way. Get a userId from /v2/leaderboard/{window}, /v2/search, /v2/alerts or the /ws/alerts stream."
+            }
+        }
+    }
+}
