@@ -99,9 +99,47 @@ COPY_TRADE_TARGET_HANDLES= # Leave empty to auto-mirror top 5 traders on FOMO le
 - **Production Build & Run:**
   ```bash
   npm run build
-  npm start
+  npm run start:prod
   ```
 - **Typecheck:**
   ```bash
   npm run typecheck
   ```
+
+---
+
+## Docker & Docker Compose Deployment
+
+The bot includes an optimized multi-stage `Dockerfile` (Alpine Linux) and `docker-compose.yml` for 24/7 server and VPS deployment.
+
+### 1. Configure `.env`
+Ensure your `.env` file is set up with your API keys and configuration:
+```bash
+cp .env.example .env
+# Edit .env with your credentials
+```
+
+### 2. Start with Docker Compose
+Run the container detached in the background with auto-restart:
+```bash
+docker compose up -d --build
+```
+
+### 3. Useful Commands
+- **View live streaming logs:**
+  ```bash
+  docker compose logs -f
+  ```
+- **Check container status:**
+  ```bash
+  docker compose ps
+  ```
+- **Restart the bot:**
+  ```bash
+  docker compose restart
+  ```
+- **Stop and remove container:**
+  ```bash
+  docker compose down
+  ```
+

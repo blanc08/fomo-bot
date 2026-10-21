@@ -1,0 +1,17 @@
+node_modules
+dist
+.env
+.env.local
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.git
+.gitignore
+.DS_Store
+.cursor
+.agents
+.gemini
+Dockerfile
+docker-compose*.yml
+README.md
