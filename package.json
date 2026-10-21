@@ -8,6 +8,7 @@
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
     "start:prod": "node dist/index.js",
+    "test:alert": "tsx src/scripts/test-alert.ts",
     "build": "tsc",
     "typecheck": "tsc --noEmit"
   },

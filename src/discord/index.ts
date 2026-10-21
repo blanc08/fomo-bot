@@ -63,6 +63,9 @@ export class UnifiedDiscordBot {
         case "trader":
           await this.handleTraderCommand(interaction);
           break;
+        case "testalert":
+          await this.handleTestAlertCommand(interaction);
+          break;
         default:
           break;
       }
@@ -201,6 +204,24 @@ export class UnifiedDiscordBot {
             .setDescription("Trader handle (e.g. sol_sniper)")
             .setRequired(true),
         ),
+      new SlashCommandBuilder()
+        .setName("testalert")
+        .setDescription(
+          "Simulate FOMO alerts (Whale Buy/Sell, Thesis, Copy-Trade)",
+        )
+        .addStringOption((opt) =>
+          opt
+            .setName("type")
+            .setDescription("Type of alert to test")
+            .setRequired(true)
+            .addChoices(
+              { name: "🐋 Whale Buy ($15,500 JUP)", value: "whale_buy" },
+              { name: "🔴 Whale Sell ($28,500 BONK)", value: "whale_sell" },
+              { name: "🧠 Alpha Thesis & AI Sentiment", value: "thesis" },
+              { name: "🔥 Narrative Spike (3 Theses)", value: "spike" },
+              { name: "⚡ Copy-Trade Buy Trigger", value: "copytrade" },
+            ),
+        ),
     ].map((cmd) => cmd.toJSON());
 
     const rest = new REST({ version: "10" }).setToken(config.DISCORD_BOT_TOKEN);
@@ -218,7 +239,7 @@ export class UnifiedDiscordBot {
           { body: commands },
         );
         logger.info(
-          " Instant guild slash commands registered (/check, /leaderboard, /trader)",
+          " Instant guild slash commands registered (/check, /leaderboard, /trader, /testalert)",
         );
       } else {
         logger.info("Registering global Discord slash commands...");
@@ -226,7 +247,7 @@ export class UnifiedDiscordBot {
           body: commands,
         });
         logger.info(
-          " Global slash commands registered (/check, /leaderboard, /trader)",
+          " Global slash commands registered (/check, /leaderboard, /trader, /testalert)",
         );
       }
     } catch (err: any) {
@@ -361,6 +382,103 @@ export class UnifiedDiscordBot {
       await interaction.editReply({
         content: `❌ Error resolving trader: ${err.message}`,
       });
+    }
+  }
+
+  private async handleTestAlertCommand(
+    interaction: ChatInputCommandInteraction,
+  ) {
+    const type = interaction.options.getString("type", true);
+    await interaction.deferReply({ ephemeral: true });
+
+    try {
+      const now = Date.now();
+      const JUP_MINT = "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN";
+      const BONK_MINT = "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263";
+
+      if (type === "whale_buy") {
+        fomoWS.emit("buy", {
+          type: "buy",
+          eventId: `test_buy_${now}`,
+          token: "JUP",
+          tokenAddress: JUP_MINT,
+          chain: "solana",
+          trader: "sol_whale",
+          tradeUsd: 15500,
+          positionValueUsd: 48000,
+          ts: now,
+          txHash: "5KtPnExAmpLeTxHaSh11111111111111111111111111",
+        });
+        await interaction.editReply(
+          `✅ Test **Whale Buy ($15,500 JUP)** alert sent to <#${config.DISCORD_WHALE_CHANNEL_ID || "channel"}>!`,
+        );
+      } else if (type === "whale_sell") {
+        fomoWS.emit("sell", {
+          type: "sell",
+          eventId: `test_sell_${now}`,
+          token: "BONK",
+          tokenAddress: BONK_MINT,
+          chain: "solana",
+          trader: "diamond_hands",
+          tradeUsd: 28500,
+          realizedPnlUsd: 11200,
+          ts: now,
+          txHash: "3QvYExAmpLeTxHaSh22222222222222222222222222",
+        });
+        await interaction.editReply(
+          `✅ Test **Whale Sell ($28,500 BONK)** alert sent to <#${config.DISCORD_WHALE_CHANNEL_ID || "channel"}>!`,
+        );
+      } else if (type === "thesis") {
+        fomoWS.emit("thesis", {
+          type: "thesis",
+          eventId: `test_thesis_${now}`,
+          token: "JUP",
+          tokenAddress: JUP_MINT,
+          chain: "solana",
+          trader: "sol_analyst",
+          thesisText:
+            "Massive institutional liquidity influx following Jupiter's LFG Launchpad upgrade. Breakout confirmed above key 200 EMA with expanding open interest.",
+          ts: now,
+        });
+        await interaction.editReply(
+          `✅ Test **Alpha Thesis** alert sent to <#${config.DISCORD_ALPHA_CHANNEL_ID || "channel"}>!`,
+        );
+      } else if (type === "spike") {
+        const traders = ["alpha_hunter", "crypto_sage", "chart_wizard"];
+        for (let i = 0; i < traders.length; i++) {
+          fomoWS.emit("thesis", {
+            type: "thesis",
+            eventId: `test_spike_${now}_${i}`,
+            token: "JUP",
+            tokenAddress: JUP_MINT,
+            chain: "solana",
+            trader: traders[i],
+            thesisText: `High conviction signal #${i + 1} on $JUP: Bullish accumulation verified on-chain.`,
+            ts: now + i * 100,
+          });
+        }
+        await interaction.editReply(
+          `✅ Test **Narrative Spike (3 Theses)** alert sent to <#${config.DISCORD_ALPHA_CHANNEL_ID || "channel"}>!`,
+        );
+      } else if (type === "copytrade") {
+        const targetTrader =
+          config.COPY_TRADE_TARGET_HANDLES[0] || "exacttalltakin";
+        fomoWS.emit("buy", {
+          type: "buy",
+          eventId: `test_copy_${now}`,
+          token: "JUP",
+          tokenAddress: JUP_MINT,
+          chain: "solana",
+          trader: targetTrader,
+          tradeUsd: 8200,
+          ts: now,
+        });
+        await interaction.editReply(
+          `✅ Test **Copy-Trade Buy** triggered for target trader **@${targetTrader}**! Check console logs.`,
+        );
+      }
+    } catch (err: any) {
+      await interaction.editReply(`❌ Error simulating alert: ${err.message}`);
     }
   }
 

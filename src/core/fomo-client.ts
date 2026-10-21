@@ -147,6 +147,19 @@ export class FomoClient {
    * Checks honeypots, unsellable tokens, transfer fees, etc.
    * Cost: 250 credits (cached for 10 min)
    */
+  public static readonly SOLANA_NETWORK_ID = "1399811149";
+
+  private resolveNetworkId(networkId?: string): string {
+    if (!networkId || networkId.toLowerCase() === "solana") {
+      return FomoClient.SOLANA_NETWORK_ID;
+    }
+    return networkId;
+  }
+
+  /**
+   * Token honeypot, freeze, and tax warnings.
+   * Cost: 250 credits (cached for 5 min)
+   */
   async getTokenWarnings(
     address: string,
     networkId = "solana",
@@ -154,9 +167,10 @@ export class FomoClient {
     const cached = cache.getTokenWarnings(address);
     if (cached) return cached;
 
+    const resolvedNet = this.resolveNetworkId(networkId);
     try {
       const data = await this.request<TokenWarningsResponse>(
-        `/v2/token/${address}/warnings?networkId=${networkId}`,
+        `/v2/token/${address}/warnings?networkId=${resolvedNet}`,
       );
       cache.setTokenWarnings(address, data);
       return data;
@@ -177,8 +191,9 @@ export class FomoClient {
     address: string,
     networkId = "solana",
   ): Promise<TokenDevsResponse> {
+    const resolvedNet = this.resolveNetworkId(networkId);
     return this.request<TokenDevsResponse>(
-      `/v2/token/${address}/devs?networkId=${networkId}`,
+      `/v2/token/${address}/devs?networkId=${resolvedNet}`,
     );
   }
 
@@ -193,8 +208,9 @@ export class FomoClient {
     const cached = cache.getTokenStats(address);
     if (cached) return cached;
 
+    const resolvedNet = this.resolveNetworkId(networkId);
     const data = await this.request<TokenStatsResponse>(
-      `/v2/token/${address}/stats?networkId=${networkId}`,
+      `/v2/token/${address}/stats?networkId=${resolvedNet}`,
     );
     cache.setTokenStats(address, data);
     return data;
